@@ -297,5 +297,15 @@ run_brewfile() {
         return 1
     fi
     print_log -info "Brewfile" "Installing from ${brewfile}"
-    brew bundle install --file="${brewfile}"
+    # Homebrew strips environment variables that lack a HOMEBREW_ prefix before
+    # evaluating the Brewfile, so forward the DOTFILES_BREW_* group flags under
+    # that prefix. The subshell keeps the forwarded names out of the caller.
+    (
+        local group flag
+        for group in CLI APPS WM SKETCHYBAR; do
+            flag="DOTFILES_BREW_${group}"
+            export "HOMEBREW_DOTFILES_BREW_${group}=${!flag:-1}"
+        done
+        brew bundle install --file="${brewfile}"
+    )
 }

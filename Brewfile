@@ -1,17 +1,19 @@
 # ============================================================================
 # Homebrew Bundle
 #
-# Selectable groups (set by scripts/install.sh; default on if unset):
-#   DOTFILES_BREW_CLI=1        core CLI, languages, fonts, taps they need
-#   DOTFILES_BREW_APPS=1       GUI casks + Mac App Store
-#   DOTFILES_BREW_WM=1         yabai / skhd / borders + related
-#   DOTFILES_BREW_SKETCHYBAR=1 SketchyBar, lua, luarocks, audio helpers
+# Selectable groups (set by scripts/install.sh; default on if unset). Homebrew
+# drops environment variables without a HOMEBREW_ prefix before it evaluates
+# this file, so the group flags carry that prefix:
+#   HOMEBREW_DOTFILES_BREW_CLI=1        core CLI, languages, fonts, taps they need
+#   HOMEBREW_DOTFILES_BREW_APPS=1       GUI casks + Mac App Store
+#   HOMEBREW_DOTFILES_BREW_WM=1         yabai / skhd / borders + related
+#   HOMEBREW_DOTFILES_BREW_SKETCHYBAR=1 SketchyBar, lua, luarocks, audio helpers
 # ============================================================================
 
-cli  = ENV.fetch("DOTFILES_BREW_CLI",        "1") == "1"
-apps = ENV.fetch("DOTFILES_BREW_APPS",       "1") == "1"
-wm   = ENV.fetch("DOTFILES_BREW_WM",         "1") == "1"
-sbar = ENV.fetch("DOTFILES_BREW_SKETCHYBAR", "1") == "1"
+cli  = ENV.fetch("HOMEBREW_DOTFILES_BREW_CLI",        "1") == "1"
+apps = ENV.fetch("HOMEBREW_DOTFILES_BREW_APPS",       "1") == "1"
+wm   = ENV.fetch("HOMEBREW_DOTFILES_BREW_WM",         "1") == "1"
+sbar = ENV.fetch("HOMEBREW_DOTFILES_BREW_SKETCHYBAR", "1") == "1"
 
 # ============================================================================
 # Taps
