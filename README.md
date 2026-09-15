@@ -73,7 +73,7 @@ An explicitly named brew group (e.g. `--brew-wm`) implies `--packages` and enabl
 
 YAGNI per-package pruning is interactive-only (it needs `gum`'s multi-select); flag-driven and non-interactive runs install whole enabled groups.
 
-The Brewfile is normal Homebrew Ruby. Groups are gated with `HOMEBREW_DOTFILES_BREW_CLI`, `HOMEBREW_DOTFILES_BREW_APPS`, `HOMEBREW_DOTFILES_BREW_WM`, and `HOMEBREW_DOTFILES_BREW_SKETCHYBAR` (default `1` if unset), so a plain `brew bundle` still installs everything. The prefix is required because Homebrew drops other environment variables before reading the Brewfile, for example `HOMEBREW_DOTFILES_BREW_APPS=0 brew bundle`. The installer forwards its selection under these names for you.
+The Brewfile is normal Homebrew Ruby. Groups are gated with `HOMEBREW_DOTFILES_BREW_CLI`, `HOMEBREW_DOTFILES_BREW_APPS`, `HOMEBREW_DOTFILES_BREW_WM`, `HOMEBREW_DOTFILES_BREW_SKETCHYBAR`, and `HOMEBREW_DOTFILES_BREW_THEME` (default `1` if unset), so a plain `brew bundle` still installs everything. The prefix is required because Homebrew drops other environment variables before reading the Brewfile, for example `HOMEBREW_DOTFILES_BREW_APPS=0 brew bundle`. The installer forwards its selection under these names for you.
 
 ## Layout
 

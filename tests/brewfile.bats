@@ -5,12 +5,14 @@ setup() {
     cat >"${FIXTURE}" <<'EOF'
 cli = ENV.fetch("DOTFILES_BREW_CLI", "1") == "1"
 tap "felixkratz/formulae" if sbar || wm
+tap "tinted-theming/tinted", trusted: true if theme
 brew "gum" if cli
 cask "raycast" if apps
 mas "Xcode", id: 497799835 if apps
 brew "yabai" if wm
 brew "borders" if wm
 brew "sketchybar" if sbar
+brew "tinty" if theme
 EOF
 
     # Evaluate a Brewfile with a stub DSL and print every package it would install.
@@ -44,7 +46,7 @@ EOF
 @test "generate keeps selected packages plus active taps, drops the rest" {
     keep="${BATS_TEST_TMPDIR}/keep"
     printf 'brew:yabai\n' >"${keep}"
-    run brewfile_generate "${FIXTURE}" 0 0 1 0 "${keep}"
+    run brewfile_generate "${FIXTURE}" 0 0 1 0 0 "${keep}"
     [[ "${output}" == *'brew "yabai"'* ]]
     [[ "${output}" == *'tap "felixkratz/formulae"'* ]]
     [[ "${output}" != *"borders"* ]]
@@ -53,14 +55,14 @@ EOF
 @test "generate excludes packages from disabled groups" {
     keep="${BATS_TEST_TMPDIR}/keep"
     printf 'cask:raycast\n' >"${keep}"
-    run brewfile_generate "${FIXTURE}" 1 0 0 0 "${keep}"
+    run brewfile_generate "${FIXTURE}" 1 0 0 0 0 "${keep}"
     [[ "${output}" != *"raycast"* ]]
 }
 
 @test "generated filtered Brewfile has no ruby conditionals" {
     keep="${BATS_TEST_TMPDIR}/keep"
     printf 'brew:gum\n' >"${keep}"
-    run brewfile_generate "${FIXTURE}" 1 0 0 0 "${keep}"
+    run brewfile_generate "${FIXTURE}" 1 0 0 0 0 "${keep}"
     [[ "${output}" != *" if "* ]]
     [[ "${output}" != *"ENV.fetch"* ]]
 }
@@ -69,12 +71,14 @@ EOF
     command -v ruby >/dev/null 2>&1 || skip "ruby not installed"
     run env HOMEBREW_DOTFILES_BREW_CLI=0 HOMEBREW_DOTFILES_BREW_APPS=0 \
         HOMEBREW_DOTFILES_BREW_WM=1 HOMEBREW_DOTFILES_BREW_SKETCHYBAR=0 \
+        HOMEBREW_DOTFILES_BREW_THEME=0 \
         ruby -e "${BREWFILE_EVAL}" Brewfile
     [ "$status" -eq 0 ]
     [[ "${output}" == *"brew:yabai"* ]]
     [[ "${output}" != *"brew:gum"* ]]
     [[ "${output}" != *"cask:raycast"* ]]
     [[ "${output}" != *"brew:sketchybar"* ]]
+    [[ "${output}" != *"brew:tinty"* ]]
 }
 
 @test "Brewfile installs every group when no group flag is set" {
@@ -85,6 +89,7 @@ EOF
     [[ "${output}" == *"cask:raycast"* ]]
     [[ "${output}" == *"brew:yabai"* ]]
     [[ "${output}" == *"brew:sketchybar"* ]]
+    [[ "${output}" == *"brew:tinty"* ]]
 }
 
 @test "run_brewfile forwards group flags to Homebrew under the HOMEBREW_ prefix" {
@@ -92,13 +97,29 @@ EOF
     envlog="${BATS_TEST_TMPDIR}/env"
     print_log() { :; }
     brew() { env | grep '^HOMEBREW_DOTFILES_BREW_' | sort >"${envlog}"; }
-    export DOTFILES_BREW_CLI=0 DOTFILES_BREW_APPS=1 DOTFILES_BREW_WM=0
+    export DOTFILES_BREW_CLI=0 DOTFILES_BREW_APPS=1 DOTFILES_BREW_WM=0 DOTFILES_BREW_THEME=0
     unset DOTFILES_BREW_SKETCHYBAR
     run_brewfile "${FIXTURE}"
     grep -qx 'HOMEBREW_DOTFILES_BREW_CLI=0' "${envlog}"
     grep -qx 'HOMEBREW_DOTFILES_BREW_APPS=1' "${envlog}"
     grep -qx 'HOMEBREW_DOTFILES_BREW_WM=0' "${envlog}"
     grep -qx 'HOMEBREW_DOTFILES_BREW_SKETCHYBAR=1' "${envlog}"
+    grep -qx 'HOMEBREW_DOTFILES_BREW_THEME=0' "${envlog}"
     # forwarded in a subshell only; the caller's environment stays untouched
     [ -z "${HOMEBREW_DOTFILES_BREW_CLI:-}" ]
+}
+
+@test "candidates for theme list tinty" {
+    run brewfile_candidates "${FIXTURE}" theme
+    [[ "${output}" == *"tinty"* ]]
+    [[ "${output}" != *"yabai"* ]]
+}
+
+@test "generate with theme on keeps tinty and its tap" {
+    keep="${BATS_TEST_TMPDIR}/keep"
+    printf 'brew:tinty\n' >"${keep}"
+    run brewfile_generate "${FIXTURE}" 0 0 0 0 1 "${keep}"
+    [[ "${output}" == *'brew "tinty"'* ]]
+    [[ "${output}" == *'tap "tinted-theming/tinted", trusted: true'* ]]
+    [[ "${output}" != *"felixkratz"* ]]
 }

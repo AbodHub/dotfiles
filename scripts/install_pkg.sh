@@ -29,8 +29,9 @@ export DOTFILES_BREW_CLI="${DOTFILES_BREW_CLI:-1}"
 export DOTFILES_BREW_APPS="${DOTFILES_BREW_APPS:-1}"
 export DOTFILES_BREW_WM="${DOTFILES_BREW_WM:-1}"
 export DOTFILES_BREW_SKETCHYBAR="${DOTFILES_BREW_SKETCHYBAR:-1}"
+export DOTFILES_BREW_THEME="${DOTFILES_BREW_THEME:-1}"
 
-print_log -sec "install-pkg" -info "Groups" "cli=${DOTFILES_BREW_CLI} apps=${DOTFILES_BREW_APPS} wm=${DOTFILES_BREW_WM} sketchybar=${DOTFILES_BREW_SKETCHYBAR}"
+print_log -sec "install-pkg" -info "Groups" "cli=${DOTFILES_BREW_CLI} apps=${DOTFILES_BREW_APPS} wm=${DOTFILES_BREW_WM} sketchybar=${DOTFILES_BREW_SKETCHYBAR} theme=${DOTFILES_BREW_THEME}"
 
 if ! run_brewfile "${brewfile}"; then
     print_log -sec "install-pkg" -warn "Partial" "Some packages may have failed — re-run: brew bundle install --file=${brewfile}"
@@ -47,6 +48,7 @@ else
     [[ "${DOTFILES_BREW_CLI}" == "1" ]] && critical+=("git" "nvim" "zsh")
     [[ "${DOTFILES_BREW_WM}" == "1" ]] && critical+=("yabai" "skhd")
     [[ "${DOTFILES_BREW_SKETCHYBAR}" == "1" ]] && critical+=("sketchybar" "lua" "luarocks")
+    [[ "${DOTFILES_BREW_THEME}" == "1" ]] && critical+=("tinty" "dark-notify")
 
     missing=()
     for cmd in "${critical[@]}"; do

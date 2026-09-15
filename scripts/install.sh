@@ -384,7 +384,7 @@ select_packages() {
         sbar_core_kept=0
     fi
 
-    brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" \
+    brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" "${brew_theme:-0}" \
         "${keepfile}" >"${tmp}"
     rm -f "${keepfile}"
     export DOTFILES_BREWFILE="${tmp}"

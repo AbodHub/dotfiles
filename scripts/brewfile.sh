@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Brewfile parsing + filtering for interactive per-package selection.
 #
-# Packages in the Brewfile are guarded by a single group (`... if cli|apps|wm|sbar`).
+# Packages in the Brewfile are guarded by a single group (`... if cli|apps|wm|sbar|theme`).
 # These helpers are pure (awk over a Brewfile) so they can be unit-tested.
 
 # brewfile_candidates BREWFILE GROUP
@@ -36,13 +36,13 @@ brewfile_candidates() {
     ' "${file}"
 }
 
-# brewfile_generate BREWFILE CLI APPS WM SBAR KEEPFILE
+# brewfile_generate BREWFILE CLI APPS WM SBAR THEME KEEPFILE
 #   Emit a plain (unconditional) Brewfile: every tap whose condition is met by
 #   the enabled groups, plus each brew/cask/mas line whose "type:name" key is
 #   listed in KEEPFILE (one key per line). Group flags are "1"/"0".
 brewfile_generate() {
-    local file=$1 cli=$2 apps=$3 wm=$4 sbar=$5 keepfile=$6
-    awk -v cli="${cli}" -v apps="${apps}" -v wm="${wm}" -v sbar="${sbar}" -v keepfile="${keepfile}" '
+    local file=$1 cli=$2 apps=$3 wm=$4 sbar=$5 theme=$6 keepfile=$7
+    awk -v cli="${cli}" -v apps="${apps}" -v wm="${wm}" -v sbar="${sbar}" -v theme="${theme}" -v keepfile="${keepfile}" '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     function active(cond,   n, toks, i) {
         if (cond == "") return 1
@@ -51,7 +51,7 @@ brewfile_generate() {
         return 0
     }
     BEGIN {
-        g["cli"] = cli; g["apps"] = apps; g["wm"] = wm; g["sbar"] = sbar
+        g["cli"] = cli; g["apps"] = apps; g["wm"] = wm; g["sbar"] = sbar; g["theme"] = theme
         while ((getline k < keepfile) > 0) keep[k] = 1
     }
     /^(tap|brew|cask|mas) / {

@@ -302,7 +302,7 @@ run_brewfile() {
     # that prefix. The subshell keeps the forwarded names out of the caller.
     (
         local group flag
-        for group in CLI APPS WM SKETCHYBAR; do
+        for group in CLI APPS WM SKETCHYBAR THEME; do
             flag="DOTFILES_BREW_${group}"
             export "HOMEBREW_DOTFILES_BREW_${group}=${!flag:-1}"
         done
