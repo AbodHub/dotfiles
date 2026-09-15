@@ -42,7 +42,10 @@ tap "tinted-theming/tinted", trusted: true if theme
 
 # Shell and Utilities
 brew "bash" if cli
+brew "bats-core" if cli
 brew "gum" if cli
+brew "shellcheck" if cli
+brew "shfmt" if cli
 brew "vivid" if cli
 brew "zsh" if cli
 brew "zsh-autosuggestions" if cli
@@ -103,6 +106,7 @@ brew "tuicr" if cli
 
 # Security Tools
 brew "gnupg" if cli
+brew "nss" if cli
 brew "openssh" if cli
 cask "1password-cli" if cli
 
@@ -125,6 +129,7 @@ cask "logitech-g-hub" if apps
 brew "lua" if sbar
 brew "luarocks" if sbar
 brew "python" if cli
+brew "uv" if cli
 
 # ============================================================================
 # Development Tools & IDEs

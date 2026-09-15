@@ -78,3 +78,11 @@ done
 # Lerd
 [[ -d "$HOME/.local/share/lerd/bin" ]] && export PATH="$HOME/.local/share/lerd/bin:$PATH"
 [[ -d "$HOME/.local/share/zsh/site-functions" ]] && fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
+
+# Lerd
+export PATH="/Users/raven/.local/share/lerd/bin:$PATH"
+
+# Lerd Completions
+fpath=(/Users/raven/.local/share/zsh/site-functions $fpath)
+autoload -Uz compinit && compinit
+
