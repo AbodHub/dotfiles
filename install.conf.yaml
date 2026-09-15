@@ -26,6 +26,7 @@
     ~/.config/bat: configs/bat
     ~/.config/btop: configs/btop
     ~/.config/fastfetch: configs/fastfetch
+    ~/.config/tmux: configs/tmux
     ~/.config/yazi: configs/yazi
 
 - create:
