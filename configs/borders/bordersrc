@@ -1,14 +1,21 @@
 #!/bin/bash
 
+# Colors: tinty-rendered palette when present, else Catppuccin Mocha defaults.
+active_color=0xff89b4fa
+inactive_color=0xff45475a
+background_color=0xff1e1e2e
+
+theme_file="${XDG_DATA_HOME:-$HOME/.local/share}/tinted-theming/tinty/artifacts/borders-build-file.sh"
+# shellcheck source=/dev/null
+[[ -r "${theme_file}" ]] && source "${theme_file}"
+
 options=(
   style=round
   width=4
   hidpi=on
-  active_color=0xffb4befe
-  # active_color="gradient(top_left=0xffb4befe,bottom_right=0xff222222)"
-  inactive_color=0xff6c7086
-  background_color=0xff1e1e2e
-  # blur_radius=64
+  active_color="${active_color}"
+  inactive_color="${inactive_color}"
+  background_color="${background_color}"
 )
 
 borders "${options[@]}"

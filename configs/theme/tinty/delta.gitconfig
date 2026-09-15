@@ -1,0 +1,6 @@
+# Delta colors from the theme engine. Included by configs/git/delta.gitconfig.
+[include]
+	path = ~/.local/share/tinted-theming/tinty/artifacts/delta-configs-file.gitconfig
+# tinted-delta selects base16-256, which assumes tinted-shell; roost uses the plain base16 theme.
+[delta]
+	syntax-theme = base16

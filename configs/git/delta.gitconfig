@@ -5,3 +5,6 @@
 	diffFilter = delta --color-only
 [delta]
 	navigate = true
+# Theme engine colors; the file exists only when theming is set up.
+[include]
+	path = ~/.config/tinted-theming/tinty/delta.gitconfig

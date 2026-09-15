@@ -4,3 +4,5 @@ backups/
 
 # theme engine output (rendered by tinty, copied by hooks)
 configs/theme/tinty/templates/*/build/
+configs/btop/themes/
+configs/yazi/flavors/

@@ -45,3 +45,12 @@
         fi
       stdout: true
       stderr: true
+    - description: "Seed a fallback yazi flavor until the theme engine renders one..."
+      command: |
+        flavor="$HOME/.config/yazi/flavors/tinty.yazi/flavor.toml"
+        if [ ! -e "$flavor" ]; then
+          mkdir -p "$(dirname "$flavor")"
+          cp configs/yazi/flavor.fallback.toml "$flavor"
+        fi
+      stdout: true
+      stderr: true

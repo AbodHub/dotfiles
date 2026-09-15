@@ -172,3 +172,85 @@ warp_settings() {
         grep -q "^${fam}"$'\t' configs/theme/tinty/families.tsv
     done
 }
+
+@test "sketchybar colors.lua falls back to the built-in palette without tinty output" {
+    command -v lua >/dev/null 2>&1 || skip "lua not installed"
+    run env XDG_DATA_HOME="${BATS_TEST_TMPDIR}/nowhere" lua -e '
+        local c = dofile("configs/sketchybar/colors.lua")
+        assert(c.grey == 0xff45475a, "fallback grey")
+        assert(c.with_alpha(0xffffffff, 0.5) == 0x7fffffff, "with_alpha")'
+    [ "$status" -eq 0 ]
+}
+
+@test "sketchybar colors.lua prefers the tinty-generated palette" {
+    command -v lua >/dev/null 2>&1 || skip "lua not installed"
+    art="${BATS_TEST_TMPDIR}/share/tinted-theming/tinty/artifacts"
+    mkdir -p "${art}"
+    printf 'return { grey = 0xff123456 }\n' >"${art}/sketchybar-build-file.lua"
+    run env XDG_DATA_HOME="${BATS_TEST_TMPDIR}/share" lua -e '
+        local c = dofile("configs/sketchybar/colors.lua")
+        assert(c.grey == 0xff123456, "generated grey")
+        assert(type(c.with_alpha) == "function", "with_alpha attached")'
+    [ "$status" -eq 0 ]
+}
+
+@test "bordersrc and yabairc parse and source the palette file when present" {
+    bash -n configs/borders/bordersrc
+    sh -n configs/yabai/yabairc
+    grep -q 'borders-build-file.sh' configs/borders/bordersrc
+    grep -q 'yabai-build-file.sh' configs/yabai/yabairc
+}
+
+@test "bat uses the builtin base16 theme and ships no vendored tmThemes" {
+    grep -q -- '--theme="base16"' configs/bat/config
+    [ ! -d configs/bat/themes ]
+}
+
+@test "btop points at the tinty theme and ships no vendored themes" {
+    grep -q '^color_theme = "tinty"' configs/btop/btop.conf
+    # the tinty hook drops a gitignored tinty.theme here; only tracked files count as vendored
+    ! git ls-files configs/btop/themes | grep -q '\.theme$'
+}
+
+@test "yazi theme.toml only selects the tinty flavor" {
+    grep -q '^\[flavor\]' configs/yazi/theme.toml
+    grep -q '^dark = "tinty"' configs/yazi/theme.toml
+    grep -q '^light = "tinty"' configs/yazi/theme.toml
+    ! grep -q '^\[mgr\]' configs/yazi/theme.toml
+    [ -f configs/yazi/flavor.fallback.toml ]
+    ! grep -q 'syntect_theme' configs/yazi/flavor.fallback.toml
+}
+
+@test "zshrc wires fzf, vivid, lazygit, and p10k to tinty artifacts" {
+    grep -q 'TINTY_ARTIFACTS=' configs/shell/zshrc
+    grep -q 'fzf-sh-file.sh' configs/shell/zshrc
+    grep -q 'FZF_COLOR_SCHEME=' configs/shell/zshrc
+    grep -q 'vivid-themes-file.yml' configs/shell/zshrc
+    grep -q 'lazygit-themes-file.yml' configs/shell/zshrc
+    grep -q 'p10k-build-file.zsh' configs/shell/zshrc
+}
+
+@test "delta picks up theme colors only when theming is set up" {
+    home="${BATS_TEST_TMPDIR}/home"
+    mkdir -p "${home}/.config/git"
+    cp configs/git/gitconfig "${home}/.gitconfig"
+    cp configs/git/delta.gitconfig "${home}/.config/git/delta.gitconfig"
+    gitget() { env -u GIT_CONFIG_GLOBAL HOME="${home}" XDG_CONFIG_HOME="${home}/.config" GIT_CONFIG_NOSYSTEM=1 git config --global --includes --get "$1"; }
+
+    run gitget delta.syntax-theme
+    [ "$status" -eq 1 ]
+
+    art="${home}/.local/share/tinted-theming/tinty/artifacts"
+    mkdir -p "${home}/.config/tinted-theming/tinty" "${art}"
+    cp configs/theme/tinty/delta.gitconfig "${home}/.config/tinted-theming/tinty/delta.gitconfig"
+    printf '[delta]\n\tsyntax-theme = "base16-256"\n\tlight = true\n' >"${art}/delta-configs-file.gitconfig"
+
+    run gitget delta.syntax-theme
+    [ "$output" = "base16" ]
+    run gitget delta.light
+    [ "$output" = "true" ]
+}
+
+@test "tmux sources the tinted-tmux palette when present" {
+    grep -q "if-shell '\[ -r .*tmux-colors-file.conf \]'" configs/tmux/tmux.conf
+}
