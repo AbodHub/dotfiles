@@ -40,6 +40,9 @@ command -v vivid >/dev/null 2>&1 && export LS_COLORS="$(vivid generate catppucci
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 command -v fzf >/dev/null 2>&1 && source <(fzf --zsh)
 
+# lazygit: on macOS it defaults to ~/Library/Application Support; use the linked ~/.config/lazygit
+export LG_CONFIG_FILE="$HOME/.config/lazygit/config.yml"
+
 if command -v brew >/dev/null 2>&1; then
   [[ -r "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
     source "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
