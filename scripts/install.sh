@@ -22,6 +22,7 @@ Components (select at least one, or use interactive mode on a TTY):
   --wm-services        Start window-manager services (yabai / skhd / borders)
   --sketchybar-service Start the SketchyBar service
   --services           Start both WM and SketchyBar services
+  --theme              Theme engine: tinty + auto light/dark (links, applies, starts the agent)
   --macos              Apply macOS defaults (scripts/macos.sh)
   --all                Enable every component above (all brew groups)
 
@@ -30,6 +31,7 @@ Brew groups (only apply with --packages / --all / interactive packages):
   --brew-apps / --no-brew-apps             GUI casks + Mac App Store
   --brew-wm / --no-brew-wm                 yabai / skhd / borders
   --brew-sketchybar / --no-brew-sketchybar SketchyBar, lua, luarocks, audio helpers
+  --brew-theme / --no-brew-theme           tinty + dark-notify (theme engine)
 
 Maintenance:
   --reset-yabai   Reinstall the yabai scripting addition (after a yabai upgrade)
@@ -48,6 +50,7 @@ Examples:
   $0 --packages --shell --configs
   $0 --packages --no-brew-apps --brew-sketchybar --no-brew-wm
   $0 --brew-wm --wm-configs --wm-services
+  $0 --configs --theme
   $0 --all --dry-run
   $0 --reset-yabai
 EOF
@@ -61,6 +64,7 @@ flg_WmServices=0
 flg_SbarConfigs=0
 flg_SbarService=0
 flg_Macos=0
+flg_Theme=0
 flg_DryRun=0
 flg_AnyComponent=0
 flg_ResetYabai=0
@@ -75,11 +79,13 @@ brew_cli=-1
 brew_apps=-1
 brew_wm=-1
 brew_sbar=-1
+brew_theme=-1
 
 # Whether each feature's core package survived per-package pruning (gates the
 # config/service follow-ups in the interactive picker).
 wm_core_kept=1
 sbar_core_kept=1
+theme_core_kept=1
 
 mark_component() {
     flg_AnyComponent=1
@@ -94,6 +100,7 @@ reset_flags() {
     flg_SbarConfigs=0
     flg_SbarService=0
     flg_Macos=0
+    flg_Theme=0
     flg_DryRun=0
     flg_AnyComponent=0
     flg_ResetYabai=0
@@ -102,8 +109,10 @@ reset_flags() {
     brew_apps=-1
     brew_wm=-1
     brew_sbar=-1
+    brew_theme=-1
     wm_core_kept=1
     sbar_core_kept=1
+    theme_core_kept=1
     unset use_default 2>/dev/null || true
 }
 
@@ -148,6 +157,12 @@ parse_args() {
             --services)
                 flg_WmServices=1
                 flg_SbarService=1
+                mark_component
+                shift
+                ;;
+            --theme)
+                flg_Theme=1
+                brew_theme=1
                 mark_component
                 shift
                 ;;
@@ -196,6 +211,15 @@ parse_args() {
                 brew_sbar=0
                 shift
                 ;;
+            --brew-theme)
+                brew_theme=1
+                mark_component
+                shift
+                ;;
+            --no-brew-theme)
+                brew_theme=0
+                shift
+                ;;
             --all)
                 flg_Packages=1
                 flg_Shell=1
@@ -205,10 +229,12 @@ parse_args() {
                 flg_SbarConfigs=1
                 flg_SbarService=1
                 flg_Macos=1
+                flg_Theme=1
                 brew_cli=1
                 brew_apps=1
                 brew_wm=1
                 brew_sbar=1
+                brew_theme=1
                 mark_component
                 shift
                 ;;
@@ -262,6 +288,11 @@ picker_basic() {
         prompt_yes_no "  Link the SketchyBar config?" default_yes && flg_SbarConfigs=1
         prompt_yes_no "  Start the SketchyBar service now?" default_yes && flg_SbarService=1
     fi
+    if prompt_yes_no "Theming (tinty + auto light/dark)" default_no; then
+        brew_theme=1
+        flg_Packages=1
+        flg_Theme=1
+    fi
     if prompt_yes_no "Apply macOS system defaults" default_no; then
         flg_Macos=1
         hostName="$(prompt_input "Computer hostname (blank to keep current)" "")"
@@ -272,6 +303,7 @@ picker_basic() {
     [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
     [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
     [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=0
+    [[ "${brew_theme}" -lt 0 ]] && brew_theme=0
     return 0
 }
 
@@ -286,6 +318,7 @@ gum_picker() {
         "Base dotfiles (git / shell / editors)"
         "Window management (yabai + skhd + borders)"
         "SketchyBar (status bar)"
+        "Theming (tinty + auto light/dark)"
         "macOS system defaults"
     )
     local chosen
@@ -311,6 +344,10 @@ gum_picker() {
         brew_sbar=1
         flg_Packages=1
     }
+    grep -q "^Theming" <<<"${chosen}" && {
+        brew_theme=1
+        flg_Packages=1
+    }
     grep -q "^macOS system defaults" <<<"${chosen}" && flg_Macos=1
 
     # A brew group not chosen above is explicitly off (clean 0/1 picker output).
@@ -318,6 +355,7 @@ gum_picker() {
     [[ "${brew_apps}" -lt 0 ]] && brew_apps=0
     [[ "${brew_wm}" -lt 0 ]] && brew_wm=0
     [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=0
+    [[ "${brew_theme}" -lt 0 ]] && brew_theme=0
 
     # Prune individual packages for the chosen package features.
     if [[ "${flg_Packages}" -eq 1 ]]; then
@@ -342,6 +380,13 @@ gum_picker() {
             print_log -y "Skip" "sketchybar deselected — skipping its config and service"
         fi
     fi
+    if [[ "${brew_theme}" -eq 1 ]]; then
+        if [[ "${theme_core_kept}" -eq 1 ]]; then
+            flg_Theme=1
+        else
+            print_log -y "Skip" "tinty deselected — skipping theme setup"
+        fi
+    fi
 
     # Hostname is a macOS default, so it's only offered when that feature is on.
     if [[ "${flg_Macos}" -eq 1 ]]; then
@@ -357,6 +402,7 @@ select_packages() {
     # config/service follow-ups on it.
     wm_core_kept=1
     sbar_core_kept=1
+    theme_core_kept=1
 
     local orig="${repoDir}/Brewfile"
     [[ -f "${orig}" ]] || return 0
@@ -371,6 +417,7 @@ select_packages() {
     [[ "${brew_apps}" -eq 1 ]] && groups+=(apps)
     [[ "${brew_wm}" -eq 1 ]] && groups+=(wm)
     [[ "${brew_sbar}" -eq 1 ]] && groups+=(sbar)
+    [[ "${brew_theme}" -eq 1 ]] && groups+=(theme)
 
     local group
     for group in "${groups[@]}"; do
@@ -383,8 +430,11 @@ select_packages() {
     if [[ "${brew_sbar}" -eq 1 ]] && ! grep -qx "brew:sketchybar" "${keepfile}"; then
         sbar_core_kept=0
     fi
+    if [[ "${brew_theme}" -eq 1 ]] && ! grep -qx "brew:tinty" "${keepfile}"; then
+        theme_core_kept=0
+    fi
 
-    brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" "${brew_theme:-0}" \
+    brewfile_generate "${orig}" "${brew_cli}" "${brew_apps}" "${brew_wm}" "${brew_sbar}" "${brew_theme}" \
         "${keepfile}" >"${tmp}"
     rm -f "${keepfile}"
     export DOTFILES_BREWFILE="${tmp}"
@@ -447,7 +497,7 @@ run_interactive() {
     # If the picker was dismissed with nothing chosen, don't march on to a
     # no-op "success" — say so and stop.
     local total=$((flg_Packages + flg_Shell + flg_Configs + flg_WmConfigs + \
-        flg_WmServices + flg_SbarConfigs + flg_SbarService + flg_Macos))
+        flg_WmServices + flg_SbarConfigs + flg_SbarService + flg_Macos + flg_Theme))
     if [[ "${total}" -eq 0 ]]; then
         print_log -warn "Nothing selected" "No features chosen — nothing to do"
         exit 0
@@ -530,7 +580,7 @@ setup_git_identity() {
 
 resolve_brew_groups() {
     local any_group_on=0
-    [[ "${brew_cli}" -eq 1 || "${brew_apps}" -eq 1 || "${brew_wm}" -eq 1 || "${brew_sbar}" -eq 1 ]] &&
+    [[ "${brew_cli}" -eq 1 || "${brew_apps}" -eq 1 || "${brew_wm}" -eq 1 || "${brew_sbar}" -eq 1 || "${brew_theme}" -eq 1 ]] &&
         any_group_on=1
 
     # An explicitly-enabled brew group implies installing packages.
@@ -545,17 +595,19 @@ resolve_brew_groups() {
         [[ "${brew_apps}" -lt 0 ]] && brew_apps=${unset_default}
         [[ "${brew_wm}" -lt 0 ]] && brew_wm=${unset_default}
         [[ "${brew_sbar}" -lt 0 ]] && brew_sbar=${unset_default}
+        [[ "${brew_theme}" -lt 0 ]] && brew_theme=${unset_default}
     else
         brew_cli=0
         brew_apps=0
         brew_wm=0
         brew_sbar=0
+        brew_theme=0
     fi
     return 0
 }
 
 validate_selection() {
-    if [[ "${flg_Packages}" -eq 1 && "${brew_cli}" -eq 0 && "${brew_apps}" -eq 0 && "${brew_wm}" -eq 0 && "${brew_sbar}" -eq 0 ]]; then
+    if [[ "${flg_Packages}" -eq 1 && "${brew_cli}" -eq 0 && "${brew_apps}" -eq 0 && "${brew_wm}" -eq 0 && "${brew_sbar}" -eq 0 && "${brew_theme}" -eq 0 ]]; then
         print_log -err "Brewfile" "Packages selected but all brew groups are off"
         return 1
     fi
@@ -571,6 +623,8 @@ validate_selection() {
         print_log -warn "Deps" "Linking the SketchyBar config, but no SketchyBar packages are selected"
     [[ "${flg_SbarService}" -eq 1 && "${brew_sbar}" -ne 1 ]] &&
         print_log -warn "Deps" "Starting the SketchyBar service, but no SketchyBar packages are selected"
+    [[ "${flg_Theme}" -eq 1 && "${flg_Configs}" -ne 1 ]] &&
+        print_log -warn "Deps" "Theme selected without base dotfiles — shell, fzf, vivid, lazygit, and delta wiring lives in --configs"
     return 0
 }
 
@@ -578,13 +632,14 @@ describe_plan() {
     print_log -y "DRY RUN" "no changes will be made"
     [[ "${need_pre}" -eq 1 ]] && print_log -info "Pre" "Would run install_pre.sh (Xcode CLT, Homebrew)"
     if [[ "${flg_Packages}" -eq 1 ]]; then
-        print_log -info "Packages" "Would brew bundle Brewfile (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
+        print_log -info "Packages" "Would brew bundle Brewfile (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar} theme=${brew_theme})"
         [[ "${brew_sbar}" -eq 1 ]] && print_log -info "SketchyBar" "Would run install_sketchybar.sh"
     fi
     [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Shell" "Would run install_shell.sh"
     [[ "${flg_Configs}" -eq 1 ]] && print_log -info "Base dotfiles" "Would link install.conf.yaml"
     [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -info "WM configs" "Would link install.wm.conf.yaml (yabai / skhd / borders)"
     [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -info "SketchyBar config" "Would link install.sketchybar.conf.yaml"
+    [[ "${flg_Theme}" -eq 1 ]] && print_log -info "Theme" "Would link install.theme.conf.yaml and run install_theme.sh (tinty sync, theme set, dark-notify agent)"
     if [[ "${flg_Macos}" -eq 1 ]]; then
         local host="${hostName:-${COMPUTER_NAME:-}}"
         if [[ -n "${host}" ]]; then
@@ -707,14 +762,15 @@ main() {
     validate_selection || exit 1
 
     export flg_DryRun flg_Packages flg_Shell flg_Configs
-    export flg_WmConfigs flg_WmServices flg_SbarConfigs flg_SbarService flg_Macos
+    export flg_WmConfigs flg_WmServices flg_SbarConfigs flg_SbarService flg_Macos flg_Theme
     export DOTFILES_BREW_CLI="${brew_cli}"
     export DOTFILES_BREW_APPS="${brew_apps}"
     export DOTFILES_BREW_WM="${brew_wm}"
     export DOTFILES_BREW_SKETCHYBAR="${brew_sbar}"
+    export DOTFILES_BREW_THEME="${brew_theme}"
 
     need_pre=0
-    if [[ "${flg_Packages}" -eq 1 || "${flg_Configs}" -eq 1 || "${flg_WmConfigs}" -eq 1 || "${flg_SbarConfigs}" -eq 1 ]]; then
+    if [[ "${flg_Packages}" -eq 1 || "${flg_Configs}" -eq 1 || "${flg_WmConfigs}" -eq 1 || "${flg_SbarConfigs}" -eq 1 || "${flg_Theme}" -eq 1 ]]; then
         need_pre=1
     fi
 
@@ -732,13 +788,14 @@ main() {
     if ui_rich; then
         {
             echo "## roost — install plan"
-            [[ "${flg_Packages}" -eq 1 ]] && echo "- **Packages** — cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar}"
+            [[ "${flg_Packages}" -eq 1 ]] && echo "- **Packages** — cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar} theme=${brew_theme}"
             [[ "${flg_Shell}" -eq 1 ]] && echo "- **Shell environment**"
             [[ "${flg_Configs}" -eq 1 ]] && echo "- **Base dotfiles**"
             [[ "${flg_WmConfigs}" -eq 1 ]] && echo "- **Window-manager configs** (yabai / skhd / borders)"
             [[ "${flg_SbarConfigs}" -eq 1 ]] && echo "- **SketchyBar config**"
             [[ "${flg_WmServices}" -eq 1 ]] && echo "- **Window-manager services**"
             [[ "${flg_SbarService}" -eq 1 ]] && echo "- **SketchyBar service**"
+            [[ "${flg_Theme}" -eq 1 ]] && echo "- **Theme** (tinty + auto light/dark)"
             if [[ "${flg_Macos}" -eq 1 ]]; then
                 if [[ -n "${hostName}" ]]; then
                     echo "- **macOS defaults** — hostname \`${hostName}\`"
@@ -749,13 +806,14 @@ main() {
         } | gum format
     else
         print_log -info "Plan" "Selected:"
-        [[ "${flg_Packages}" -eq 1 ]] && print_log -g " +" "Packages (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar})"
+        [[ "${flg_Packages}" -eq 1 ]] && print_log -g " +" "Packages (cli=${brew_cli} apps=${brew_apps} wm=${brew_wm} sketchybar=${brew_sbar} theme=${brew_theme})"
         [[ "${flg_Shell}" -eq 1 ]] && print_log -g " +" "Shell environment"
         [[ "${flg_Configs}" -eq 1 ]] && print_log -g " +" "Base dotfiles"
         [[ "${flg_WmConfigs}" -eq 1 ]] && print_log -g " +" "Window-manager configs"
         [[ "${flg_SbarConfigs}" -eq 1 ]] && print_log -g " +" "SketchyBar config"
         [[ "${flg_WmServices}" -eq 1 ]] && print_log -g " +" "Window-manager services"
         [[ "${flg_SbarService}" -eq 1 ]] && print_log -g " +" "SketchyBar service"
+        [[ "${flg_Theme}" -eq 1 ]] && print_log -g " +" "Theme (tinty + auto light/dark)"
         if [[ "${flg_Macos}" -eq 1 ]]; then
             if [[ -n "${hostName}" ]]; then
                 print_log -g " +" "macOS defaults (hostname ${hostName})"
@@ -823,6 +881,18 @@ main() {
         fi
     fi
 
+    if [[ "${flg_Theme}" -eq 1 ]]; then
+        print_log -info "Theme" "Linking theme configs..."
+        if resolve_link_conflicts "${repoDir}/install.theme.conf.yaml"; then
+            (
+                cd "${repoDir}"
+                ./install -c install.theme.conf.yaml
+            )
+        fi
+        print_log -info "Theme" "Applying theme and starting auto light/dark..."
+        "${scrDir}/install_theme.sh"
+    fi
+
     if [[ "${flg_Macos}" -eq 1 ]]; then
         print_log -info "macOS" "Applying system defaults..."
         # Prefer the hostname picked interactively; fall back to a COMPUTER_NAME
@@ -843,12 +913,16 @@ main() {
             echo "- Restart your terminal, or \`source ~/.zshrc\`"
             [[ "${flg_Shell}" -eq 1 ]] && echo "- Run \`p10k configure\` to customize your prompt"
             [[ "${flg_WmServices}" -eq 1 || "${brew_wm}" -eq 1 ]] && echo "- Log out/in so window management picks up Accessibility permissions"
+            [[ "${flg_Theme}" -eq 1 ]] && echo "- Warp: Settings > Appearance > pick the \`tinty\` theme; switch with \`theme set <family>\`"
+            [[ "${flg_Theme}" -eq 1 ]] && echo "- Claude Code: run \`/theme\` and pick Tinty"
             echo "- See \`README.md\` for customization and key bindings"
         } | gum format
     else
         print_log -info "Next" "Restart your terminal (or source ~/.zshrc)"
         [[ "${flg_Shell}" -eq 1 ]] && print_log -info "Next" "Run 'p10k configure' to customize your prompt"
         [[ "${flg_WmServices}" -eq 1 || "${brew_wm}" -eq 1 ]] && print_log -info "Next" "Log out/in so window management picks up Accessibility permissions"
+        [[ "${flg_Theme}" -eq 1 ]] && print_log -info "Next" "Warp: Settings > Appearance > pick the 'tinty' theme; switch with 'theme set <family>'"
+        [[ "${flg_Theme}" -eq 1 ]] && print_log -info "Next" "Claude Code: run /theme and pick Tinty"
         print_log -info "Docs" "See README.md for customization and key bindings"
     fi
 }

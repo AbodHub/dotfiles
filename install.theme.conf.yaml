@@ -1,0 +1,14 @@
+- defaults:
+    link:
+      relink: true
+      create: true
+    shell:
+      stdout: true
+      stderr: true
+
+- link:
+    # tinty config, family table, and roost templates (one dir)
+    ~/.config/tinted-theming/tinty: configs/theme/tinty
+
+    # `theme` command
+    ~/.local/bin/theme: configs/theme/bin/theme

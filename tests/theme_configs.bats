@@ -254,3 +254,29 @@ warp_settings() {
 @test "tmux sources the tinted-tmux palette when present" {
     grep -q "if-shell '\[ -r .*tmux-colors-file.conf \]'" configs/tmux/tmux.conf
 }
+
+@test "install.theme.conf.yaml links only the theme engine config and the theme command" {
+    grep -q '~/.config/tinted-theming/tinty: configs/theme/tinty' install.theme.conf.yaml
+    grep -q '~/.local/bin/theme: configs/theme/bin/theme' install.theme.conf.yaml
+    [ "$(grep -cE '^[[:space:]]+~/' install.theme.conf.yaml)" -eq 2 ]
+}
+
+@test "the theme-sync LaunchAgent plist is valid and runs dark-notify with theme sync" {
+    plist="configs/theme/launchd/com.roost.theme-sync.plist"
+    command -v plutil >/dev/null 2>&1 || skip "plutil not available"
+    plutil -lint "${plist}"
+    grep -q '<string>com.roost.theme-sync</string>' "${plist}"
+    grep -q 'dark-notify -c' "${plist}"
+    grep -q 'theme sync' "${plist}"
+    grep -q '<key>KeepAlive</key>' "${plist}"
+}
+
+@test "install_theme.sh refuses to run without tinty on PATH" {
+    run env PATH="/usr/bin:/bin" bash scripts/install_theme.sh
+    [ "$status" -ne 0 ]
+    [[ "${output}" == *"tinty"* ]]
+}
+
+@test "zprofile puts ~/.local/bin, where the theme command is linked, on PATH" {
+    grep -q '^export PATH="$HOME/.local/bin:$PATH"$' configs/shell/zprofile
+}

@@ -8,6 +8,7 @@ A macOS development environment you can make your own: Homebrew packages, shell 
 
 - Configurable: pick between CLI tools, GUI apps, shell configuration, base configs, window management, SketchyBar, [macOS defaults](https://github.com/mathiasbynens/dotfiles), and setup for the features it installs.
 - Rich UI: [`gum`](https://github.com/charmbracelet/gum) is used when available to make our interfaces gorgeous. There is a plain-prompt fallback and a non-interactive fallback as well!
+- Theming: one `theme set <family>` re-colors SketchyBar, borders, yabai, Warp, Claude Code, bat, btop, yazi, tmux, lazygit, delta, fzf, `ls`, and the prompt via [tinty](https://github.com/tinted-theming/tinty); light/dark follows macOS automatically.
 - YAGNI: within a chosen feature set, deselect individual formulae/casks/apps you don't want/need.
 - Git Identity: first run prompts your Git identity (name, email, optional GPG signing keys) and writes it into `configs/git/gitconfig` before linking.
 
@@ -42,6 +43,7 @@ On a terminal with no flags, you get the interactive feature-first picker. Away 
 ./scripts/install.sh # interactive picker
 ./scripts/install.sh --packages --shell --configs
 ./scripts/install.sh --brew-wm --wm-configs --wm-services # WM only, end to end
+./scripts/install.sh --configs --theme # base dotfiles + theme engine
 ./scripts/install.sh --packages --no-brew-apps --brew-sketchybar --no-brew-wm
 ./scripts/install.sh --all --dry-run
 ./scripts/install.sh --macos # system defaults only
@@ -56,6 +58,7 @@ COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
 | `--brew-apps` / `--no-brew-apps`             | Toggle GUI casks + Mac App Store group                                   |
 | `--brew-wm` / `--no-brew-wm`                 | Toggle yabai / skhd / borders group                                      |
 | `--brew-sketchybar` / `--no-brew-sketchybar` | Toggle SketchyBar, lua, luarocks, audio helpers                          |
+| `--brew-theme` / `--no-brew-theme`           | Toggle tinty + dark-notify group                                         |
 | `--shell`                                    | Oh My Zsh, Powerlevel10k, nvm, fzf plugin                                |
 | `--configs`                                  | Base dotfiles — git / shell / editors (`install.conf.yaml`)              |
 | `--wm-configs`                               | Window-manager configs — yabai / skhd / borders (`install.wm.conf.yaml`) |
@@ -63,6 +66,7 @@ COMPUTER_NAME="MyMac" ./scripts/install.sh --macos
 | `--wm-services`                              | Start window-manager services (yabai / skhd / borders)                   |
 | `--sketchybar-service`                       | Start the SketchyBar service                                             |
 | `--services`                                 | Start both WM and SketchyBar services                                    |
+| `--theme`                                    | Theme engine: tinty + dark-notify, links, applies, starts the agent      |
 | `--macos`                                    | Apply `scripts/macos.sh` defaults                                        |
 | `--all`                                      | Everything above (all brew groups on)                                    |
 | `--reset-yabai`                              | Reinstall the yabai scripting addition (after a yabai upgrade)           |
@@ -84,6 +88,7 @@ The Brewfile is normal Homebrew Ruby. Groups are gated with `HOMEBREW_DOTFILES_B
 ├── install.conf.yaml             # base dotfiles (git / shell / editors)
 ├── install.wm.conf.yaml          # window-manager configs (yabai / skhd / borders)
 ├── install.sketchybar.conf.yaml  # SketchyBar config
+├── install.theme.conf.yaml       # theme engine (tinty config, `theme` command)
 ├── Brewfile                      # one bundle; groups selectable via env/flags
 ├── scripts/
 │   ├── install.sh                # orchestrator + feature-first picker
@@ -94,6 +99,7 @@ The Brewfile is normal Homebrew Ruby. Groups are gated with `HOMEBREW_DOTFILES_B
 │   ├── install_shell.sh
 │   ├── install_services.sh
 │   ├── install_sketchybar.sh
+│   ├── install_theme.sh
 │   ├── macos.sh
 │   └── reset_yabai.sh
 ├── tests/                        # bats unit tests (make test)
@@ -122,8 +128,30 @@ This reinstalls the scripting addition and refreshes the hash-pinned sudoers ent
 - Git Identity: the repo ships `configs/git/gitconfig` with no `[user]` section. On first `--configs` run you are prompted for name, email, and whether to enable GPG signing (choosing a key from your keyring), and the values are written straight into `configs/git/gitconfig` before Dotbot links it. Since you fork first, personalizing the tracked file is expected; run `git update-index --skip-worktree configs/git/gitconfig` if you want to keep your details out of future commits.
 - Packages: in the interactive picker, deselect individual packages per feature; for permanent changes edit `Brewfile` (keep the `if cli` / `if apps` / `if wm` / `if sbar` guards), then re-run with the group flags you want.
 - Configs: edit under `configs/`, update the matching Dotbot YAML (`install.conf.yaml`, `install.wm.conf.yaml`, `install.sketchybar.conf.yaml`), then run `./install -c <file>`.
+- Theme: see [Theming](#theming). The default family on a fresh install is `catppuccin` (override with `DOTFILES_THEME_FAMILY=gruvbox ./scripts/install.sh --theme`).
 - Hostname: choosing macOS system defaults in the interactive picker prompts for a hostname (blank keeps the current one). For flag-driven runs, set it via the environment: `COMPUTER_NAME=MyMac ./scripts/install.sh --macos` (or `COMPUTER_NAME=MyMac ./scripts/macos.sh`).
 - Touch ID for sudo: if [`mole`](https://mole.fit) is installed (the `mo` CLI, part of the CLI group), the interactive installer offers to run `mo touchid enable` so `sudo` accepts your fingerprint. It's offered before the sudo-heavy macOS-defaults step; skipped in `--yes` / non-interactive runs. You can enable it later by hand with `mo touchid enable`.
+
+## Theming
+
+`theme` wraps [tinty](https://github.com/tinted-theming/tinty). Families pair a dark and a light base16 scheme; `theme set <family>` picks the variant that matches macOS appearance, and `dark-notify` (LaunchAgent `com.roost.theme-sync`) re-syncs on every appearance change.
+
+```bash
+theme list                      # families, variants, current
+theme set gruvbox               # follow macOS appearance
+theme set base16-rose-pine-moon # one exact scheme
+theme dark                      # force a variant until the next appearance change
+theme pin warp dark             # keep one app on a variant (or a scheme id)
+theme unpin warp                # let it follow the theme again
+theme pin terminal dark         # pin every app that draws inside the terminal
+theme rebuild                   # after editing configs/theme/tinty/templates/*
+```
+
+Add a family by appending a tab-separated row to `configs/theme/tinty/families.tsv` (ids from `tinty list`). Add an app by dropping a Mustache template under `configs/theme/tinty/templates/<app>/templates/` plus an `[[items]]` entry in `configs/theme/tinty/config.toml`, then `theme rebuild && theme sync`. The item's `name` is the app name `theme pin` accepts.
+
+Pins keep one app on `dark`, `light`, or an exact scheme id whatever the rest does, and survive appearance changes. They live in the tracked `configs/theme/tinty/pins.tsv`, so they follow you to every machine. Apps: `fzf`, `tmux`, `delta`, `lazygit`, `yazi`, `vivid`, `warp`, `claude-code`, `sketchybar`, `borders`, `yabai`, `btop`, and `p10k`. Pinning `warp` also keeps tools that draw with the terminal's colors (bat, fastfetch, zsh highlighting) on that variant inside Warp. Apps with their own colors draw on Warp's background, so pin them along with Warp: the `terminal` group in `configs/theme/tinty/groups.tsv` covers `warp`, `claude-code`, `lazygit`, `yazi`, `vivid`, `p10k`, `delta`, `fzf`, `tmux`, and `btop`. Pins for `fzf`, `vivid`, `lazygit`, and `p10k` show up in new shells.
+
+Rendered palettes live in `~/.local/share/tinted-theming/tinty/artifacts/`; configs read them with fallbacks, so the repo never changes on a switch. Warp reads `~/.warp/themes/tinty.yaml`: choose the `tinty` theme once in Settings > Appearance (set it for both modes under Sync with OS). Claude Code reads `~/.claude/themes/tinty.json`: run `/theme` once and pick Tinty, which Claude Code stores as `custom:tinty`. Both files are written only after the app has run once.
 
 ## Key bindings
 
@@ -141,6 +169,7 @@ See `configs/skhd/skhdrc` for the full map. Highlights:
 - Homebrew Issues: `brew doctor`
 - WM Issues: `brew services list`; check Accessibility for your terminal / yabai / skhd; run the `--reset-yabai` script.
 - SketchyBar: `./scripts/install_sketchybar.sh` then `brew services restart sketchybar`
+- Theme not switching: `launchctl print gui/$(id -u)/com.roost.theme-sync`, log in `/tmp/com.roost.theme-sync.log`; re-run `./scripts/install_theme.sh`
 - Broken Symlinks: `./install` again, or `find ~ -type l -exec test ! -e {} \; -print`
 
 ## License

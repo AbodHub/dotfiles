@@ -14,10 +14,12 @@ setup() {
     [ "$flg_SbarConfigs" -eq 1 ]
     [ "$flg_SbarService" -eq 1 ]
     [ "$flg_Macos" -eq 1 ]
+    [ "$flg_Theme" -eq 1 ]
     [ "$brew_cli" -eq 1 ]
     [ "$brew_apps" -eq 1 ]
     [ "$brew_wm" -eq 1 ]
     [ "$brew_sbar" -eq 1 ]
+    [ "$brew_theme" -eq 1 ]
 }
 
 @test "--services enables both WM and SketchyBar services" {
@@ -61,6 +63,7 @@ setup() {
     [ "$brew_apps" -eq 1 ]
     [ "$brew_wm" -eq 1 ]
     [ "$brew_sbar" -eq 1 ]
+    [ "$brew_theme" -eq 1 ]
 }
 
 @test "an explicit brew group implies packages and enables only that group" {
@@ -73,6 +76,7 @@ setup() {
     [ "$brew_cli" -eq 0 ]
     [ "$brew_apps" -eq 0 ]
     [ "$brew_sbar" -eq 0 ]
+    [ "$brew_theme" -eq 0 ]
 }
 
 @test "packages not selected forces all groups off" {
@@ -82,12 +86,13 @@ setup() {
     [ "$brew_apps" -eq 0 ]
     [ "$brew_wm" -eq 0 ]
     [ "$brew_sbar" -eq 0 ]
+    [ "$brew_theme" -eq 0 ]
 }
 
 @test "packages on with all groups off fails validation" {
     reset_flags
     flg_Packages=1
-    brew_cli=0 brew_apps=0 brew_wm=0 brew_sbar=0
+    brew_cli=0 brew_apps=0 brew_wm=0 brew_sbar=0 brew_theme=0
     run validate_selection
     [ "$status" -ne 0 ]
 }
@@ -105,6 +110,7 @@ setup() {
     select_packages() {
         wm_core_kept=1
         sbar_core_kept=1
+        theme_core_kept=1
     }
     prompt_yes_no() { return 0; }
 
@@ -134,6 +140,7 @@ setup() {
     select_packages() {
         wm_core_kept=0
         sbar_core_kept=1
+        theme_core_kept=1
     }
     prompt_yes_no() { return 0; }
 
@@ -171,4 +178,82 @@ setup() {
     grep -q 'name = Test User' "${configDir}/git/gitconfig"
     grep -q 'navigate = true' "${configDir}/git/gitconfig"
     [ "$(grep -c 'defaultBranch' "${configDir}/git/gitconfig")" -eq 1 ]
+}
+
+@test "--theme enables the theme step and implies the theme brew group" {
+    reset_flags
+    parse_args --theme
+    [ "$flg_Theme" -eq 1 ]
+    [ "$brew_theme" -eq 1 ]
+    [ "$flg_AnyComponent" -eq 1 ]
+    resolve_brew_groups
+    [ "$flg_Packages" -eq 1 ]
+    [ "$brew_cli" -eq 0 ]
+    [ "$brew_wm" -eq 0 ]
+}
+
+@test "--no-brew-theme turns the theme group off" {
+    reset_flags
+    parse_args --packages --no-brew-theme
+    resolve_brew_groups
+    [ "$brew_theme" -eq 0 ]
+    [ "$brew_cli" -eq 1 ]
+}
+
+@test "gum_picker maps Theming to the theme flag and group" {
+    reset_flags
+    gum() {
+        case "$*" in
+            *"What should roost set up"*) printf 'Theming (tinty + auto light/dark)\n' ;;
+            *) printf '' ;;
+        esac
+    }
+    select_packages() {
+        wm_core_kept=1
+        sbar_core_kept=1
+        theme_core_kept=1
+    }
+    prompt_yes_no() { return 0; }
+
+    gum_picker
+
+    [ "$flg_Packages" -eq 1 ]
+    [ "$brew_theme" -eq 1 ]
+    [ "$flg_Theme" -eq 1 ]
+    [ "$brew_cli" -eq 0 ]
+}
+
+@test "gum_picker skips the theme step when tinty is pruned away" {
+    reset_flags
+    gum() {
+        case "$*" in
+            *"What should roost set up"*) printf 'Theming (tinty + auto light/dark)\n' ;;
+            *) printf '' ;;
+        esac
+    }
+    select_packages() {
+        wm_core_kept=1
+        sbar_core_kept=1
+        theme_core_kept=0
+    }
+    prompt_yes_no() { return 0; }
+
+    gum_picker
+
+    [ "$brew_theme" -eq 1 ]
+    [ "$flg_Theme" -eq 0 ]
+}
+
+@test "dry-run plan mentions the theme step" {
+    run bash -c '
+        cd "'"${BATS_TEST_DIRNAME}"'/.."
+        source scripts/install.sh
+        reset_flags
+        parse_args --theme
+        resolve_brew_groups
+        need_pre=1
+        describe_plan
+    '
+    [ "$status" -eq 0 ]
+    [[ "${output}" == *"install_theme.sh"* ]]
 }
