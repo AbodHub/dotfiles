@@ -1,4 +1,4 @@
-SCRIPTS := bootstrap.sh install $(wildcard scripts/*.sh)
+SCRIPTS := bootstrap.sh install configs/theme/bin/theme $(wildcard configs/theme/tinty/hooks/*.sh) $(wildcard scripts/*.sh)
 
 .PHONY: lint fmt fmt-check test check
 

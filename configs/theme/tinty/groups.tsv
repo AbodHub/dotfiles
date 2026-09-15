@@ -1,0 +1,2 @@
+# group	apps (comma-separated app names; `theme pin <group> ...` pins them all)
+terminal	warp,claude-code,lazygit,yazi,vivid,p10k,delta,fzf,tmux,btop

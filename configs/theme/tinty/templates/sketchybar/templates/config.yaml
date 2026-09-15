@@ -1,0 +1,3 @@
+default:
+  filename: build/{{ scheme-system }}-{{ scheme-slug }}.lua
+  supported-systems: [base16]

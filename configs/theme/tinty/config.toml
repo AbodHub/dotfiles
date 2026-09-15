@@ -1,0 +1,108 @@
+# roost theme engine (tinty). Linked to ~/.config/tinted-theming/tinty/config.toml.
+#
+# Rendered palettes land in:
+#   ${XDG_DATA_HOME:-~/.local/share}/tinted-theming/tinty/artifacts/<name>-<themes-dir>-file.<ext>
+# Upstream items are git-cloned by `tinty sync`. Roost templates (templates/*)
+# are rendered into their build/ dir by `theme rebuild` (gitignored).
+#
+# Item names are the app names `theme pin` accepts; path is the maintained template.
+# Every item MUST declare supported-systems: tinty skips items that do not list
+# the applied scheme's system, and does not fall back to base16.
+
+shell = "bash -c '{}'"
+default-scheme = "base16-catppuccin-mocha"
+
+# --- upstream templates ------------------------------------------------------
+
+[[items]]
+name = "fzf"
+path = "https://github.com/tinted-theming/tinted-fzf"
+themes-dir = "sh"
+supported-systems = ["base16"]
+
+[[items]]
+name = "tmux"
+path = "https://github.com/tinted-theming/tinted-tmux"
+themes-dir = "colors"
+hook = "tmux run 2>/dev/null && tmux source-file \"$TINTY_THEME_FILE_PATH\" || true"
+supported-systems = ["base16"]
+
+[[items]]
+name = "delta"
+path = "https://github.com/tinted-theming/tinted-delta"
+themes-dir = "configs"
+supported-systems = ["base16"]
+
+[[items]]
+name = "lazygit"
+path = "https://github.com/tinted-theming/tinted-lazygit"
+themes-dir = "themes"
+supported-systems = ["base16"]
+
+[[items]]
+name = "yazi"
+path = "https://github.com/tinted-theming/tinted-yazi"
+themes-dir = "flavors"
+hook = "mkdir -p \"$HOME/.config/yazi/flavors/tinty.yazi\" && cp -f \"$TINTY_THEME_FILE_PATH\" \"$HOME/.config/yazi/flavors/tinty.yazi/flavor.toml\""
+supported-systems = ["base16"]
+
+[[items]]
+name = "vivid"
+path = "https://github.com/tinted-theming/base16-vivid"
+themes-dir = "themes"
+supported-systems = ["base16"]
+
+# Warp: installing the file and making Warp apply it lives in hooks/warp.sh.
+# Hooks run inside bash -c '...', so they must not contain single quotes.
+[[items]]
+name = "warp"
+path = "https://github.com/tinted-theming/tinted-terminal"
+themes-dir = "themes/warp"
+hook = "\"$HOME/.config/tinted-theming/tinty/hooks/warp.sh\" \"$TINTY_THEME_FILE_PATH\""
+supported-systems = ["base16"]
+
+# Static flavor: the Node flavor needs node on PATH, which the LaunchAgent lacks.
+# Skipped until Claude Code has created ~/.claude. Select it once with /theme.
+[[items]]
+name = "claude-code"
+path = "https://github.com/tinted-theming/tinted-claude-code"
+themes-dir = "themes"
+theme-file-extension = ".json"
+hook = "[ -d \"$HOME/.claude\" ] || exit 0; mkdir -p \"$HOME/.claude/themes\" && cp -f \"$TINTY_THEME_FILE_PATH\" \"$HOME/.claude/themes/tinty.json\""
+supported-systems = ["base16"]
+
+# --- roost templates ---------------------------------------------------------
+
+[[items]]
+name = "sketchybar"
+path = "~/.config/tinted-theming/tinty/templates/sketchybar"
+themes-dir = "build"
+hook = "pgrep -xq sketchybar && sketchybar --reload || true"
+supported-systems = ["base16"]
+
+[[items]]
+name = "borders"
+path = "~/.config/tinted-theming/tinty/templates/borders"
+themes-dir = "build"
+hook = "pgrep -xq borders && . \"$TINTY_THEME_FILE_PATH\" && borders active_color=\"$active_color\" inactive_color=\"$inactive_color\" background_color=\"$background_color\" || true"
+supported-systems = ["base16"]
+
+[[items]]
+name = "yabai"
+path = "~/.config/tinted-theming/tinty/templates/yabai"
+themes-dir = "build"
+hook = "pgrep -xq yabai && . \"$TINTY_THEME_FILE_PATH\" && yabai -m config insert_feedback_color \"$insert_feedback_color\" || true"
+supported-systems = ["base16"]
+
+[[items]]
+name = "btop"
+path = "~/.config/tinted-theming/tinty/templates/btop"
+themes-dir = "build"
+hook = "mkdir -p \"$HOME/.config/btop/themes\" && cp -f \"$TINTY_THEME_FILE_PATH\" \"$HOME/.config/btop/themes/tinty.theme\" && (pkill -USR2 -x btop || true)"
+supported-systems = ["base16"]
+
+[[items]]
+name = "p10k"
+path = "~/.config/tinted-theming/tinty/templates/p10k"
+themes-dir = "build"
+supported-systems = ["base16"]

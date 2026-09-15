@@ -1,0 +1,351 @@
+#!/usr/bin/env bash
+# theme - roost theme switcher on top of tinty.
+#
+#   theme set <family|scheme-id>  choose a family (variant follows macOS appearance)
+#                                 or apply one exact tinty scheme id
+#   theme dark | light            force the current family's dark / light variant
+#   theme sync [dark|light]       re-apply the current family for the given
+#                                 (or detected) appearance; dark-notify calls this
+#   theme pin <app|group> <dark|light|scheme-id>
+#                                 keep an app, or every app in a group, on a
+#                                 variant or scheme regardless
+#   theme unpin <app|group>       let the app(s) follow the theme again
+#   theme list                    families, groups, pins, and the current selection
+#   theme current                 print the applied scheme id
+#   theme rebuild                 re-render roost templates after editing them
+#
+# Families live in families.tsv, groups in groups.tsv, and pins in pins.tsv,
+# next to tinty's config.toml; app names are the item names there. The chosen family is remembered in
+# $XDG_STATE_HOME/roost/theme/family.
+
+set -euo pipefail
+
+THEME_CONFIG="${THEME_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/tinted-theming/tinty}"
+THEME_FAMILIES="${THEME_FAMILIES:-${THEME_CONFIG}/families.tsv}"
+THEME_PINS="${THEME_PINS:-${THEME_CONFIG}/pins.tsv}"
+THEME_GROUPS="${THEME_GROUPS:-${THEME_CONFIG}/groups.tsv}"
+THEME_TINTY_CONFIG="${THEME_TINTY_CONFIG:-${THEME_CONFIG}/config.toml}"
+THEME_TEMPLATES="${THEME_TEMPLATES:-${THEME_CONFIG}/templates}"
+THEME_DATA="${THEME_DATA:-${XDG_DATA_HOME:-${HOME}/.local/share}/tinted-theming/tinty}"
+THEME_STATE_DIR="${THEME_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/roost/theme}"
+
+usage() {
+    sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+}
+
+die() {
+    printf 'theme: %s\n' "$*" >&2
+    exit 1
+}
+
+warn() {
+    printf 'theme: %s\n' "$*" >&2
+}
+
+# family_row FAMILY -> "dark<TAB>light<TAB>variants" (empty if unknown)
+family_row() {
+    awk -F'\t' -v f="$1" '!/^#/ && $1 == f { print $2 "\t" $3 "\t" $4; exit }' "${THEME_FAMILIES}"
+}
+
+# family_of_scheme SCHEME-ID -> family owning it as dark, light, or variant (empty if none)
+family_of_scheme() {
+    awk -F'\t' -v s="$1" '
+        !/^#/ && NF {
+            if ($2 == s || $3 == s) { print $1; exit }
+            n = split($4, v, ",")
+            for (i = 1; i <= n; i++) if (v[i] == s) { print $1; exit }
+        }' "${THEME_FAMILIES}"
+}
+
+# appearance -> dark|light. macOS stores AppleInterfaceStyle=Dark only in dark mode.
+appearance() {
+    if defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark; then
+        printf 'dark\n'
+    else
+        printf 'light\n'
+    fi
+}
+
+current_family() {
+    cat "${THEME_STATE_DIR}/family" 2>/dev/null || true
+}
+
+save_family() {
+    mkdir -p "${THEME_STATE_DIR}"
+    printf '%s' "$1" >"${THEME_STATE_DIR}/family"
+}
+
+# --- apps (tinty items) ------------------------------------------------------
+
+# item_info APP -> "themes-dir<TAB>hook" from tinty's config.toml (empty if no such item)
+item_info() {
+    awk -v want="$1" '
+        function val(line) {
+            sub(/^[^=]*=[[:space:]]*"/, "", line)
+            sub(/"[[:space:]]*$/, "", line)
+            gsub(/\\"/, "\"", line)
+            return line
+        }
+        function flush() {
+            if (!done && name == want) { printf "%s\t%s\n", dir, hook; done = 1 }
+        }
+        /^\[\[items\]\]/ { flush(); name = dir = hook = ""; next }
+        /^name[[:space:]]*=/ { name = val($0); next }
+        /^themes-dir[[:space:]]*=/ { dir = val($0); next }
+        /^hook[[:space:]]*=/ { hook = val($0); next }
+        END { flush() }
+    ' "${THEME_TINTY_CONFIG}"
+}
+
+item_names() {
+    awk '/^name[[:space:]]*=/ { sub(/^[^=]*=[[:space:]]*"/, ""); sub(/"[[:space:]]*$/, ""); print }' \
+        "${THEME_TINTY_CONFIG}"
+}
+
+# apply_app APP SCHEME: render one app with SCHEME, the way tinty apply would.
+# Every template repo ships a file per scheme, so this copies that file over the
+# app's artifact and runs the app's hook with tinty's variables.
+apply_app() {
+    local app=$1 scheme=$2 info dir hook src ext artifact f
+    info="$(item_info "${app}")"
+    if [[ -z "${info}" ]]; then
+        warn "skipping ${app}: not an app in ${THEME_TINTY_CONFIG}"
+        return 0
+    fi
+    IFS=$'\t' read -r dir hook <<<"${info}"
+
+    src=""
+    for f in "${THEME_DATA}/repos/${app}/${dir}/${scheme}".*; do
+        [[ -f "${f}" ]] && src="${f}" && break
+    done
+    if [[ -z "${src}" ]]; then
+        warn "skipping ${app}: no ${scheme} file (run: tinty sync, theme rebuild)"
+        return 0
+    fi
+
+    ext="${src##*.}"
+    artifact="${THEME_DATA}/artifacts/${app}-${dir//\//-}-file.${ext}"
+    mkdir -p "${THEME_DATA}/artifacts"
+    cp -f "${src}" "${artifact}"
+    if [[ -n "${hook}" ]]; then
+        TINTY_THEME_FILE_PATH="${artifact}" TINTY_SCHEME_ID="${scheme}" TINTY_THEME_OPERATION=apply \
+            bash -c "${hook}" </dev/null || warn "${app} hook failed"
+    fi
+    printf 'theme: %s -> %s\n' "${app}" "${scheme}"
+}
+
+# group_apps GROUP -> one app per line (nothing if GROUP is not a group)
+group_apps() {
+    [[ -f "${THEME_GROUPS}" ]] || return 0
+    awk -F'\t' -v g="$1" '!/^#/ && $1 == g { n = split($2, a, ","); for (i = 1; i <= n; i++) print a[i]; exit }' \
+        "${THEME_GROUPS}"
+}
+
+group_names() {
+    [[ -f "${THEME_GROUPS}" ]] || return 0
+    awk -F'\t' '!/^#/ && NF { print $1 }' "${THEME_GROUPS}"
+}
+
+# resolve_apps NAME -> the app itself, or every app in the group; fails if neither
+resolve_apps() {
+    if [[ -n "$(item_info "$1")" ]]; then
+        printf '%s\n' "$1"
+        return 0
+    fi
+    local apps
+    apps="$(group_apps "$1")"
+    [[ -n "${apps}" ]] || return 1
+    printf '%s\n' "${apps}"
+}
+
+# --- pins --------------------------------------------------------------------
+
+# pin_target PIN FAMILY -> scheme id for the pin (empty if a mode pin has no family)
+pin_target() {
+    local pin=$1 fam=$2 row dark light
+    case "${pin}" in
+        dark | light)
+            [[ -n "${fam}" ]] || return 0
+            row="$(family_row "${fam}")"
+            [[ -n "${row}" ]] || return 0
+            IFS=$'\t' read -r dark light _ <<<"${row}"
+            if [[ "${pin}" == "dark" ]]; then printf '%s\n' "${dark}"; else printf '%s\n' "${light}"; fi
+            ;;
+        *) printf '%s\n' "${pin}" ;;
+    esac
+}
+
+pin_of() {
+    [[ -f "${THEME_PINS}" ]] || return 0
+    awk -F'\t' -v a="$1" '!/^#/ && $1 == a { print $2; exit }' "${THEME_PINS}"
+}
+
+# apply_pins FAMILY APPLIED: re-render every pinned app whose pin differs from APPLIED.
+apply_pins() {
+    local fam=$1 applied=$2 app pin target
+    [[ -f "${THEME_PINS}" ]] || return 0
+    while IFS=$'\t' read -r app pin; do
+        case "${app}" in "" | \#*) continue ;; esac
+        target="$(pin_target "${pin}" "${fam}")"
+        if [[ -z "${target}" ]]; then
+            warn "skipping pin ${app}=${pin}: no family selected"
+            continue
+        fi
+        [[ "${target}" == "${applied}" ]] && continue
+        apply_app "${app}" "${target}"
+    done <"${THEME_PINS}"
+}
+
+# save_pin APP PIN: set (PIN non-empty) or remove (PIN empty) the app's row in pins.tsv.
+save_pin() {
+    local tmp
+    [[ -f "${THEME_PINS}" ]] || printf '# app\tpin\n' >"${THEME_PINS}"
+    tmp="$(mktemp "${THEME_PINS}.XXXXXX")"
+    awk -F'\t' -v OFS='\t' -v a="$1" -v p="$2" \
+        '$1 != a { print } END { if (p != "") print a, p }' "${THEME_PINS}" >"${tmp}"
+    mv -f "${tmp}" "${THEME_PINS}"
+}
+
+applied_scheme() {
+    tinty current 2>/dev/null || true
+}
+
+cmd_pin() {
+    local name=${1:-} pin=${2:-} apps app
+    [[ -n "${name}" && -n "${pin}" ]] || die "usage: theme pin <app|group> <dark|light|scheme-id>"
+    apps="$(resolve_apps "${name}")" ||
+        die "unknown app or group: ${name} (apps: $(item_names | tr '\n' ' ')groups: $(group_names | tr '\n' ' '))"
+    case "${pin}" in
+        dark | light) ;;
+        *) tinty list | grep -qx "${pin}" || die "unknown scheme: ${pin} (try: tinty list)" ;;
+    esac
+
+    for app in ${apps}; do
+        save_pin "${app}" "${pin}"
+        printf 'theme: pinned %s to %s\n' "${app}" "${pin}"
+    done
+
+    local applied target
+    applied="$(applied_scheme)"
+    [[ -n "${applied}" ]] || return 0
+    target="$(pin_target "${pin}" "$(family_of_scheme "${applied}")")"
+    if [[ -z "${target}" ]]; then
+        warn "pin takes effect once a family is selected"
+    elif [[ "${target}" != "${applied}" ]]; then
+        for app in ${apps}; do
+            apply_app "${app}" "${target}"
+        done
+    fi
+}
+
+cmd_unpin() {
+    local name=${1:-} apps app unpinned=""
+    [[ -n "${name}" ]] || die "usage: theme unpin <app|group>"
+    apps="$(resolve_apps "${name}")" || die "unknown app or group: ${name}"
+    for app in ${apps}; do
+        [[ -n "$(pin_of "${app}")" ]] || continue
+        save_pin "${app}" ""
+        printf 'theme: unpinned %s\n' "${app}"
+        unpinned="${unpinned} ${app}"
+    done
+    [[ -n "${unpinned}" ]] || die "${name} is not pinned"
+
+    local applied
+    applied="$(applied_scheme)"
+    [[ -n "${applied}" ]] || return 0
+    for app in ${unpinned}; do
+        apply_app "${app}" "${applied}"
+    done
+}
+
+# --- families ----------------------------------------------------------------
+
+apply_scheme() {
+    local scheme=$1 fam=$2
+    tinty apply "${scheme}"
+    printf 'theme: applied %s\n' "${scheme}"
+    apply_pins "${fam}" "${scheme}"
+}
+
+cmd_set() {
+    local target=${1:-}
+    [[ -n "${target}" ]] || die "usage: theme set <family|scheme-id>"
+
+    if [[ -n "$(family_row "${target}")" ]]; then
+        save_family "${target}"
+        cmd_sync
+        return 0
+    fi
+
+    tinty list | grep -qx "${target}" || die "unknown family or scheme: ${target} (try: theme list, tinty list)"
+    local fam
+    fam="$(family_of_scheme "${target}")"
+    [[ -n "${fam}" ]] && save_family "${fam}"
+    apply_scheme "${target}" "${fam}"
+}
+
+cmd_sync() {
+    local mode=${1:-}
+    [[ -n "${mode}" ]] || mode="$(appearance)"
+    case "${mode}" in
+        dark | light) ;;
+        *) die "sync: expected dark or light, got '${mode}'" ;;
+    esac
+
+    local fam
+    fam="$(current_family)"
+    [[ -n "${fam}" ]] || die "no family chosen yet - run: theme set <family>"
+    [[ -n "$(family_row "${fam}")" ]] || die "family '${fam}' is not in ${THEME_FAMILIES}"
+
+    apply_scheme "$(pin_target "${mode}" "${fam}")" "${fam}"
+}
+
+cmd_list() {
+    local cur
+    cur="$(current_family)"
+    printf '  %-12s %-32s %-32s %s\n' family dark light variants
+    awk -F'\t' -v cur="${cur}" '
+        !/^#/ && NF {
+            mark = ($1 == cur) ? "*" : " "
+            printf "%s %-12s %-32s %-32s %s\n", mark, $1, $2, $3, $4
+        }' "${THEME_FAMILIES}"
+    if [[ -f "${THEME_GROUPS}" ]] && grep -qv '^#' "${THEME_GROUPS}"; then
+        printf '\n  %-12s %s\n' group apps
+        awk -F'\t' '!/^#/ && NF { printf "  %-12s %s\n", $1, $2 }' "${THEME_GROUPS}"
+    fi
+    if [[ -f "${THEME_PINS}" ]] && grep -qv '^#' "${THEME_PINS}"; then
+        printf '\n  %-12s %s\n' pinned pin
+        awk -F'\t' '!/^#/ && NF { printf "  %-12s %s\n", $1, $2 }' "${THEME_PINS}"
+    fi
+}
+
+cmd_rebuild() {
+    local dir built=0
+    for dir in "${THEME_TEMPLATES}"/*/; do
+        [[ -f "${dir}templates/config.yaml" ]] || continue
+        tinty build "${dir%/}"
+        built=$((built + 1))
+    done
+    printf 'theme: rebuilt %d template(s); apply with: theme sync\n' "${built}"
+}
+
+main() {
+    local cmd=${1:-}
+    [[ $# -gt 0 ]] && shift
+    case "${cmd}" in
+        set) cmd_set "$@" ;;
+        dark | light) cmd_sync "${cmd}" ;;
+        sync) cmd_sync "$@" ;;
+        pin) cmd_pin "$@" ;;
+        unpin) cmd_unpin "$@" ;;
+        list) cmd_list ;;
+        current) tinty current ;;
+        rebuild) cmd_rebuild ;;
+        "" | -h | --help) usage ;;
+        *) die "unknown command '${cmd}' (see: theme --help)" ;;
+    esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

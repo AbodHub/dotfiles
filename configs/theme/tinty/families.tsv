@@ -1,0 +1,9 @@
+# family	dark	light	variants (explicit `theme set` targets, comma-separated)
+ayu	base16-ayu-dark	base16-ayu-light	base16-ayu-mirage
+catppuccin	base16-catppuccin-mocha	base16-catppuccin-latte	base16-catppuccin-frappe,base16-catppuccin-macchiato
+github	base16-github-dark	base16-github	base16-github-dark-dimmed,base16-github-dark-colorblind,base16-github-dark-high-contrast,base16-github-light-colorblind,base16-github-light-high-contrast
+gruvbox	base16-gruvbox-dark-medium	base16-gruvbox-light-medium	base16-gruvbox-dark-hard,base16-gruvbox-dark-soft,base16-gruvbox-light-hard,base16-gruvbox-light-soft
+nord	base16-nord	base16-nord-light	
+one	base16-onedark	base16-one-light	base16-onedark-dark
+rose-pine	base16-rose-pine	base16-rose-pine-dawn	base16-rose-pine-moon
+tokyonight	base16-tokyo-night-dark	base16-tokyo-night-light	base16-tokyo-night-storm,base16-tokyo-night-moon
