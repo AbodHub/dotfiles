@@ -153,3 +153,22 @@ setup() {
     '
     [ "$status" -ne 0 ]
 }
+
+@test "setup_git_identity appends the [user] block and keeps the rest of gitconfig" {
+    configDir="${BATS_TEST_TMPDIR}/configs"
+    mkdir -p "${configDir}/git"
+    printf '[init]\n\tdefaultBranch = main\n[delta]\n\tnavigate = true\n' >"${configDir}/git/gitconfig"
+    is_tty() { return 0; }
+    prompt_input() {
+        case "$1" in
+            *name*) printf 'Test User' ;;
+            *email*) printf 'test@example.com' ;;
+        esac
+    }
+    prompt_yes_no() { return 1; }
+    unset use_default
+    setup_git_identity
+    grep -q 'name = Test User' "${configDir}/git/gitconfig"
+    grep -q 'navigate = true' "${configDir}/git/gitconfig"
+    [ "$(grep -c 'defaultBranch' "${configDir}/git/gitconfig")" -eq 1 ]
+}

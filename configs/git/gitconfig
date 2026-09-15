@@ -2,3 +2,7 @@
 # Fork this repo, then run the installer or add a [user] section with your details.
 [init]
 	defaultBranch = main
+[include]
+	# git-delta settings: install.conf.yaml links this only when delta is installed,
+	# and git skips includes that do not exist.
+	path = ~/.config/git/delta.gitconfig

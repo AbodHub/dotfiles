@@ -486,7 +486,8 @@ select_gpg_key() {
 
 setup_git_identity() {
     # Personalize configs/git/gitconfig before Dotbot links it. Forkers own
-    # their fork, so writing identity into the tracked file is intended.
+    # their fork, so writing identity into the tracked file is intended. The
+    # block is appended so tracked sections (init, include) survive.
     local gc="${configDir}/git/gitconfig"
 
     if grep -q '^\[user\]' "${gc}" 2>/dev/null; then
@@ -517,14 +518,12 @@ setup_git_identity() {
         echo "	name = ${name}"
         echo "	email = ${email}"
         [[ -n "${key}" ]] && echo "	signingKey = ${key}"
-        echo "[init]"
-        echo "	defaultBranch = main"
         if [[ -n "${key}" ]]; then
             echo "[commit]"
             echo "	gpgSign = true"
             [[ -n "${gpgprog}" ]] && printf '[gpg]\n\tprogram = %s\n' "${gpgprog}"
         fi
-    } >"${gc}"
+    } >>"${gc}"
 
     print_log -g "Git identity" "Wrote ${gc}"
 }

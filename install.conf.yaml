@@ -18,6 +18,9 @@
     # Git
     ~/.gitconfig: configs/git/gitconfig
     ~/.gitignore: configs/git/gitignore
+    ~/.config/git/delta.gitconfig:
+      path: configs/git/delta.gitconfig
+      if: command -v delta >/dev/null 2>&1
 
     # Editor
     ~/.config/nvim: configs/nvim
