@@ -1,1 +1,11 @@
 # app	pin (dark, light, or a scheme id; managed by `theme pin` and `theme unpin`)
+warp	dark
+claude-code	dark
+lazygit	dark
+yazi	dark
+vivid	dark
+p10k	dark
+delta	dark
+fzf	dark
+tmux	dark
+btop	dark

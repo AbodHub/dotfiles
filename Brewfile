@@ -89,11 +89,6 @@ brew "curl" if cli
 brew "nmap" if cli
 brew "wget" if cli
 
-# Media & Audio Tools
-brew "nowplaying-cli" if sbar
-brew "switchaudio-osx" if sbar
-cask "focusrite-control-2" if apps
-
 # ============================================================================
 # Version Control & Development Core
 # ============================================================================
@@ -108,7 +103,6 @@ brew "tuicr" if cli
 brew "gnupg" if cli
 brew "nss" if cli
 brew "openssh" if cli
-cask "1password-cli" if cli
 
 # ============================================================================
 # Window Management & macOS Enhancements
@@ -120,7 +114,6 @@ brew "skhd" if wm
 brew "sketchybar" if sbar
 brew "yabai" if wm
 cask "linearmouse" if wm
-cask "logitech-g-hub" if apps
 
 # ============================================================================
 # Programming Languages & Runtimes
@@ -140,33 +133,32 @@ brew "neovim" if cli
 cask "claude" if apps
 cask "claude-code" if apps
 cask "cursor" if apps
-cask "jetbrains-toolbox" if apps
 cask "visual-studio-code" if apps
 
 # Development Services
-brew "cloudflared" if cli
-brew "lerd" if cli
+# brew "cloudflared" if cli
+# brew "lerd" if cli
 brew "stripe" if cli
-cask "bruno" if apps
+# cask "bruno" if apps
 
 # Git Clients
-cask "gitkraken" if apps
-cask "tower" if apps
+# cask "gitkraken" if apps
+# cask "tower" if apps
 
 # ============================================================================
 # DevOps & Infrastructure
 # ============================================================================
 
-brew "lazydocker" if cli
-cask "docker-desktop" if apps
-cask "sbx" if apps
+# brew "lazydocker" if cli
+# cask "docker-desktop" if apps
+# cask "sbx" if apps
 
 # ============================================================================
 # Database Management
 # ============================================================================
 
-cask "redis-insight" if apps
-cask "tableplus" if apps
+# cask "redis-insight" if apps
+# cask "tableplus" if apps
 
 # ============================================================================
 # Applications
@@ -175,29 +167,41 @@ cask "tableplus" if apps
 # Security & System
 brew "mole" if cli
 brew "pinentry-mac" if cli
-cask "1password" if apps
-cask "little-snitch" if apps
-cask "mullvad-vpn" if apps
+cask "bitwarden" if apps
+# cask "little-snitch" if apps
+# cask "mullvad-vpn" if apps
 cask "raycast" if apps
 
 # Terminals
 cask "warp" if apps
 
 # Browsers
-cask "firefox" if apps
+# cask "firefox" if apps
+cask "google-chrome" if apps
 
 # Communication
 cask "discord" if apps
-cask "slack" if apps
-cask "zoom" if apps
+# cask "slack" if apps
+# cask "zoom" if apps
 
 # Design & Media
-cask "figma" if apps
-cask "mactex-no-gui" if apps
-cask "spotify" if apps
+# cask "figma" if apps
+# cask "mactex-no-gui" if apps
+# cask "spotify" if apps
+
+# Media & Entertainment
+cask "stremio" if apps
+cask "transmission" if apps
+cask "vlc" if apps
+
+# Games
+cask "runelite" if apps
+cask "steam" if apps
 
 # Project Management
 cask "linear" if apps
+cask "notion" if apps
+cask "todoist-app" if apps
 
 # ============================================================================
 # Fonts
@@ -213,6 +217,7 @@ cask "sf-symbols" if cli
 # Mac App Store
 # ============================================================================
 
-mas "1Password for Safari", id: 1569813296 if apps
+mas "GoPro Player", id: 1460836908 if apps
 mas "uBlock Origin Lite", id: 6745342698 if apps
-mas "Xcode", id: 497799835 if apps
+mas "WhatsApp", id: 310633997 if apps
+# mas "Xcode", id: 497799835 if apps

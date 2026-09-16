@@ -37,12 +37,6 @@ if command -v brew >/dev/null 2>&1; then
   fpath=("${_brew_prefix}/share/zsh-completions" $fpath)
 fi
 
-# Docker CLI Completions
-[[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
-
-autoload -Uz compinit
-compinit
-
 source "$ZSH/oh-my-zsh.sh"
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -72,17 +66,6 @@ for alias_file in ~/.config/aliases/*.sh; do
     [[ -r "$alias_file" ]] && source "$alias_file"
 done
 
-# 1Password CLI Plugins
-[[ -r "$HOME/.config/op/plugins.sh" ]] && source "$HOME/.config/op/plugins.sh"
-
-# Lerd
-[[ -d "$HOME/.local/share/lerd/bin" ]] && export PATH="$HOME/.local/share/lerd/bin:$PATH"
-[[ -d "$HOME/.local/share/zsh/site-functions" ]] && fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
-
-# Lerd
-export PATH="/Users/raven/.local/share/lerd/bin:$PATH"
-
-# Lerd Completions
-fpath=(/Users/raven/.local/share/zsh/site-functions $fpath)
-autoload -Uz compinit && compinit
+# Bitwarden SSH Key
+export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
 

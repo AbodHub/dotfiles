@@ -1,5 +1,13 @@
 # Git identity is set by the installer (scripts/install.sh --configs) or by hand.
 # Fork this repo, then run the installer or add a [user] section with your details.
+[user]
+	name = A
+	email = aaeahmed@outlook.com
+	signingKey = 30C4641BB0F8039B
+[commit]
+	gpgSign = true
+[gpg]
+	program = /opt/homebrew/bin/gpg
 [init]
 	defaultBranch = main
 [include]
